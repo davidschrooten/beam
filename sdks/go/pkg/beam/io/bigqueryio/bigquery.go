@@ -112,13 +112,22 @@ func constructSelectStatement(t reflect.Type, tagKey string, table string) strin
 // QueryOptions represents additional options for executing a query.
 type QueryOptions struct {
 	// UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
-	UseStandardSQL bool
+	UseStandardSQL   bool
+	// UseStorageAPI enables BigQuery's Storage api when executing a query.
+	UseStorageAPI    bool
 }
 
 // UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
 func UseStandardSQL() func(qo *QueryOptions) error {
 	return func(qo *QueryOptions) error {
 		qo.UseStandardSQL = true
+		return nil
+	}
+}
+
+func UseStorageAPI() func(qo *QueryOptions) error {
+        return func(qo *QueryOptions) error {
+		qo.UseStorageAPI = true
 		return nil
 	}
 }
@@ -162,6 +171,12 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X
 	}
 	defer client.Close()
 
+	if !f.Options.UseStorageAPI {
+	    if err := client.EnableStorageReadClient(context.Background()); err != nil {
+	        return err
+	    }
+	}
+	
 	q := client.Query(f.Query)
 	if !f.Options.UseStandardSQL {
 		q.UseLegacySQL = true
